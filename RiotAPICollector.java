@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.lang.InterruptedException;
+import java.rmi.UnexpectedException;
 import java.util.ArrayList;
 import java.lang.IllegalArgumentException;
 import java.util.concurrent.TimeUnit;
@@ -32,57 +33,17 @@ public class RiotAPICollector {
     private static final String noFileMessage = "You need to create an "
         + "apikey.txt file in the same directory that contains a Riot API key";
     private static final String invalidKeyMessage = "The API key is invalid.";
-    private static final String interalServerMessage = "Riot API server "
+    private static final String interalServerErrorMessage = "Riot API server "
         + "experienced an interal server error that prevented it from "
         + "fulfilling the request.";
     private static final String serverUnavailableMessage = "Riot API server is"
         + "currently unavailable to handle the request. Try again later.";
 
-    public static void main(String args[]) throws InvalidRegionException {
-        RiotAPICollector collector = new RiotAPICollector();
-        if (args.length > 0) {
-            collector = new RiotAPICollector(args[0]);
-        }
-//
-//        Champion[] champions = collector.getFreeRotation();
-//        for (int i = 0; i < champions.length; i++) {
-//            System.out.println(champions[i]);
-//            System.out.println("------------------------");
-//        }
-//
-//        Summoner[] summoners = collector.getSummoners(
-//            "Lawrenz0","77777777UP","LuckyGambit", "Dwang", "IndirectPronoun",
-//             "ChildishWonbinos", "samurai1101", "redrover555",
-//            "Vilacoirx", "All Star Ryan","Jedi Lulz");
-//        for (int i = 0; i < summoners.length; i++) {
-//            System.out.println(summoners[i]);
-//            System.out.println("------------------------");
-//        }
-//
-//
-//        Summoner[] summoners2 = collector.getSummoners(
-//            26420175, 32951049, 32795034, 19636351, 29278997, 34842081,
-//            32018213, 33349579, 20620661, 35053551, 42223015);
-//        for (int i = 0; i < summoners2.length; i++) {
-//            System.out.println(summoners2[i]);
-//            System.out.println("------------------------");
-//        }
-
-        for (int i = 0; i < 520; i++) {
-            Summoner[] summoners3 = collector.getSummoners(
-                    26420175, 32951049, 32795034, 19636351, 29278997, 34842081,
-                    32018213, 33349579, 20620661, 35053551);
-            System.out.println(i);
-        }
-
-
-    }
-
     /**
      * No-args constructor that uses the API Key stored in apikey.txt
      * The default region is North America
      */
-    public RiotAPICollector() {
+    public RiotAPICollector() throws IOException {
         this("na");
     }
 
@@ -90,7 +51,7 @@ public class RiotAPICollector {
      * Takes in a String that represents the region to collect data from
      * for this instance of RiotAPICollector
      */
-    public RiotAPICollector(String region) {
+    public RiotAPICollector(String region) throws IOException {
         this.region = region;
         if (apiKey == null) {
             try {
@@ -107,7 +68,7 @@ public class RiotAPICollector {
         validAPICheck();
     }
 
-    public Champion[] getFreeRotation() {
+    public Champion[] getFreeRotation() throws IOException {
         JsonObject freeweek = gson.fromJson(
             collectJsonStringForFreeRotation(), JsonObject.class);
         Champion[] champions =
@@ -122,11 +83,11 @@ public class RiotAPICollector {
         return champions;
     }
 
-    public Summoner[] getSummoners(String ... args) {
+    public Summoner[] getSummoners(String ... args) throws IOException {
         return getSummonerNameHelper(0, args);
     }
 
-    private Summoner[] getSummonerNameHelper(int offset, String ... args) {
+    private Summoner[] getSummonerNameHelper(int offset, String ... args) throws IOException {
         Summoner[] summoners = new Summoner[args.length - offset];
         if (args.length - offset > 10) {
             Summoner[] moreSummoners = getSummonerNameHelper(0,
@@ -157,11 +118,11 @@ public class RiotAPICollector {
         return summoners;
     }
 
-    public Summoner[] getSummoners(long ... summonerIds) {
+    public Summoner[] getSummoners(long ... summonerIds) throws IOException {
        return getSummonerIdHelper(0, summonerIds);
     }
 
-    private Summoner[] getSummonerIdHelper(int offset, long ... args) {
+    private Summoner[] getSummonerIdHelper(int offset, long ... args) throws IOException {
         Summoner[] summoners = new Summoner[args.length - offset];
         if (args.length - offset > 10) {
             Summoner[] moreSummoners = getSummonerIdHelper(0,
@@ -191,43 +152,44 @@ public class RiotAPICollector {
         return summoners;
     }
 
-    public String collectJsonStringForChampionList() {
+    public String collectJsonStringForChampionList() throws IOException {
         return getJsonStringFromURL("https://" + region + ".api.pvp.net"
                 + "/api/lol/" + region + "/" + championVersion
                 + "/champion?api_key=" + apiKey);
     }
 
-    public String collectJsonStringForFreeRotation() {
+    public String collectJsonStringForFreeRotation() throws IOException {
         return getJsonStringFromURL("https://" + region + ".api.pvp.net/api/"
                 + "lol/" + region + "/" + championVersion + "/champion?"
                 + "freeToPlay=true&api_key=" + apiKey);
     }
 
-    public String collectJsonStringForSpecificChampion(long championID) {
+    public String collectJsonStringForSpecificChampion(long championID)
+        throws IOException {
         return getJsonStringFromURL("https://" + region + ".api.pvp.net/api/lol"
                 + "/" + region + "/" + championVersion + "/champion/"
                 + championID + "?api_key=" + apiKey);
     }
 
-    public String collectJsonStringForFeaturedGames() {
+    public String collectJsonStringForFeaturedGames() throws IOException {
         return getJsonStringFromURL("https://" + region + ".api.pvp.net/"
             +"observer-mode/rest/featured?api_key=" + apiKey);
     }
 
-    public String collectJsonStringForChampionsStaticData(){
+    public String collectJsonStringForChampionsStaticData() throws IOException {
         return getJsonStringFromURL("https://global.api.pvp.net/api/lol/"
             + "static-data/" + region + "/" + staticDataVersion
             + "/champion?api_key=" + apiKey);
     }
 
-    public String collectJsonStringForSpecificChampionStaticData(
-        long championID){
+    public String collectJsonStringForSpecificChampionStaticData
+        (long championID) throws IOException {
         return getJsonStringFromURL("https://global.api.pvp.net/api/lol/"
                 + "static-data/" + region + "/" + staticDataVersion
                 + "/champion/" + championID + "?api_key=" + apiKey);
     }
 
-    public String collectJsonStringForSummonersByName(String... args) {
+    public String collectJsonStringForSummonersByName(String... args) throws IOException {
         if (args.length == 0) {
             throw new IllegalArgumentException("The necessary input is a "
                 + "non-zero group of summoner names");
@@ -241,7 +203,7 @@ public class RiotAPICollector {
         return getJsonStringFromURL(s);
     }
 
-    public String collectJsonStringForSummonersById(long ... args) {
+    public String collectJsonStringForSummonersById(long ... args) throws IOException {
         if (args.length == 0) {
             throw new IllegalArgumentException("The necessary input is a "
                 + "non-zero group of summoner IDs.");
@@ -262,7 +224,7 @@ public class RiotAPICollector {
      * @param summonerID    unique identifier for a given summoner
      * @return  JSON String for games from the given Summoner ID
      */
-    public String collectJsonStringForGamesBySummonerID(long summonerID) {
+    public String collectJsonStringForGamesBySummonerID(long summonerID) throws IOException {
         return getJsonStringFromURL("https://" + region + ".api.pvp.net/api/lol"
                 + "/na/" + gameVersion + "/game/by-summoner/" + summonerID
                 +"/recent?api_key=" + apiKey);
@@ -273,7 +235,7 @@ public class RiotAPICollector {
      * by calling static data from the API. When already determined to be valid
      * in a previous call, runs in O(1) time.
      */
-    private static void validAPICheck() {
+    private static void validAPICheck() throws IOException {
         if (validAPIKey) { //we initially assume it is invalid when first call
             if (apiKey != null) { //reexamines the assumption
                 //check url
@@ -320,20 +282,27 @@ public class RiotAPICollector {
             java.net.HttpURLConnection http =  ((java.net.HttpURLConnection)
                     (new java.net.URL(url).openConnection()));
             int responseCode = http.getResponseCode();
-            if (responsecode == 400) { //Bad Request
+            if (responseCode == 400) { //Bad Request
                 throw new InvalidURLException();
             } else if (responseCode == 401) { //Unauthorized
                 throw new InvalidAPIKeyException();
             } else if (responseCode == 404) { //Not Found
                 throw new InvalidURLException();
             } else if (responseCode == 429) { //Rate Limit Exceeded
-                Thread.sleep(
-                        1000 * Integer.parseInt(http.getHeaderField(2)) + 500);
+                try {
+                    Thread.sleep(1000 * Integer.parseInt(
+                            http.getHeaderField(2)) + 500);
+                } catch (InterruptedException i) {
+
+                }
             } else if (responseCode == 500) { //Internal Server Error
-                throw new InternalServerErrorException();
+                throw new InteralServerErrorException();
             } else if (responseCode == 503) { //Service Unavailable
                 throw new ServerUnavailableException();
             }
+            throw new UnexpectedResponseCodeException("The response code "
+                + "received was: " + responseCode);
+
         }
     }
 
@@ -355,13 +324,19 @@ public class RiotAPICollector {
         }
     }
 
-    private static InteralServerErrorException extends RuntimeException() {
-        public InteralServerErrorException() { super(interalServerMessage); }
+    private static class InteralServerErrorException extends RuntimeException {
+        public InteralServerErrorException() { super(interalServerErrorMessage); }
     }
 
     private static class ServerUnavailableException extends RuntimeException {
         public ServerUnavailableException() {
             super(serverUnavailableMessage);
+        }
+    }
+
+    private static class UnexpectedResponseCodeException extends RuntimeException {
+        public UnexpectedResponseCodeException(String message) {
+            super(message);
         }
     }
 }
