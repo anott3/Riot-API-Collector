@@ -32,7 +32,8 @@ public class CountTable<T> {
      * @param loadFactor    load factor for the HashMap
      */
     public CountTable(int initialCapacity, float loadFactor) {
-        hashMap = new java.util.HashMap<T, Integer>(initialCapacity);
+        hashMap = new java.util.HashMap<T, Integer>(
+                initialCapacity, loadFactor);
     }
 
     /**

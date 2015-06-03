@@ -324,6 +324,8 @@ public class RiotAPICollector {
                 throw new InvalidURLException();
             } else if (responseCode == 401) { //Unauthorized
                 throw new InvalidAPIKeyException();
+            } else if (responseCode == 404) { //Not Found
+                throw new InvalidURLException();
             } else if (responseCode == 429) { //Rate Limit Exceeded
                 Thread.sleep(
                         1000 * Integer.parseInt(http.getHeaderField(2)) + 500);
