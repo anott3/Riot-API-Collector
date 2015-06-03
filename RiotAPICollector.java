@@ -32,6 +32,11 @@ public class RiotAPICollector {
     private static final String noFileMessage = "You need to create an "
         + "apikey.txt file in the same directory that contains a Riot API key";
     private static final String invalidKeyMessage = "The API key is invalid.";
+    private static final String interalServerMessage = "Riot API server "
+        + "experienced an interal server error that prevented it from "
+        + "fulfilling the request.";
+    private static final String serverUnavailableMessage = "Riot API server is"
+        + "currently unavailable to handle the request. Try again later.";
 
     public static void main(String args[]) throws InvalidRegionException {
         RiotAPICollector collector = new RiotAPICollector();
@@ -210,14 +215,14 @@ public class RiotAPICollector {
     }
 
     public String collectJsonStringForChampionsStaticData(){
-        return getJsonStringFromURLNoLimit("https://global.api.pvp.net/api/lol/"
+        return getJsonStringFromURL("https://global.api.pvp.net/api/lol/"
             + "static-data/" + region + "/" + staticDataVersion
             + "/champion?api_key=" + apiKey);
     }
 
     public String collectJsonStringForSpecificChampionStaticData(
         long championID){
-        return getJsonStringFromURLNoLimit("https://global.api.pvp.net/api/lol/"
+        return getJsonStringFromURL("https://global.api.pvp.net/api/lol/"
                 + "static-data/" + region + "/" + staticDataVersion
                 + "/champion/" + championID + "?api_key=" + apiKey);
     }
@@ -272,7 +277,7 @@ public class RiotAPICollector {
         if (validAPIKey) { //we initially assume it is invalid when first call
             if (apiKey != null) { //reexamines the assumption
                 //check url
-                JsonObject azir = gson.fromJson(getJsonStringFromURLNoLimit(
+                JsonObject azir = gson.fromJson(getJsonStringFromURL(
                     "https://global.api.pvp.net/api/lol/static-data/na/v1.2/"
                     + "champion/268?api_key=" + apiKey), JsonObject.class);
                 if (azir.get("key") != null) {
@@ -288,12 +293,12 @@ public class RiotAPICollector {
 
     /**
      * Private helper method that returns the JSON String from the Riot API URL
-     * parameter that is given. Checks Rate Limit.
+     * parameter that is given.
      * @param url   Riot API URL to get JSON String from
      * @return JSON String from the URL visited
      */
     private static String getJsonStringFromURL(String url)
-            throws InvalidURLException {
+            throws IOException, InvalidURLException, InvalidAPIKeyException {
         try {
             java.io.InputStream is = new java.net.URL(url).openStream();
             try {
@@ -312,47 +317,21 @@ public class RiotAPICollector {
                 is.close();
             }
         } catch(IOException e) {
-            try {
-                int responseCode;
-                do {
-                    responseCode = ((java.net.HttpURLConnection)
-                            (new java.net.URL(url).openConnection())).getResponseCode();
-                } while(responseCode == 429);
-                System.out.println("reached");
-                return getJsonStringFromURL(url);
-            } catch (IOException i) {
+            java.net.HttpURLConnection http =  ((java.net.HttpURLConnection)
+                    (new java.net.URL(url).openConnection()));
+            int responseCode = http.getResponseCode();
+            if (responsecode == 400) { //Bad Request
                 throw new InvalidURLException();
+            } else if (responseCode == 401) { //Unauthorized
+                throw new InvalidAPIKeyException();
+            } else if (responseCode == 429) { //Rate Limit Exceeded
+                Thread.sleep(
+                        1000 * Integer.parseInt(http.getHeaderField(2)) + 500);
+            } else if (responseCode == 500) { //Internal Server Error
+                throw new InternalServerErrorException();
+            } else if (responseCode == 503) { //Service Unavailable
+                throw new ServerUnavailableException();
             }
-        }
-    }
-
-    /**
-     * Private helper method that returns the JSON String from the Riot API URL
-     * parameter that is given. Does not check Rate Limit
-     * @param url   Riot API URL to get JSON String from
-     * @return JSON String from the URL visited
-     */
-    private static String getJsonStringFromURLNoLimit(String url)
-            throws InvalidURLException {
-        try {
-            java.io.InputStream is = new java.net.URL(url).openStream();
-            try {
-                java.io.BufferedReader rd = new java.io.BufferedReader(
-                        new java.io.InputStreamReader(
-                                is, java.nio.charset.Charset.forName("UTF-8")));
-                StringBuilder sb = new StringBuilder();
-                int cp;
-                while ((cp = rd.read()) != -1) {
-                    sb.append((char) cp);
-                }
-                return sb.toString();
-            } catch(IOException e) {
-                throw new InvalidURLException();
-            } finally {
-                is.close();
-            }
-        } catch(IOException e) {
-            throw new InvalidURLException();
         }
     }
 
@@ -371,6 +350,16 @@ public class RiotAPICollector {
     private static class InvalidAPIKeyException extends RuntimeException {
         public InvalidAPIKeyException() {
             super(invalidKeyMessage);
+        }
+    }
+
+    private static InteralServerErrorException extends RuntimeException() {
+        public InteralServerErrorException() { super(interalServerMessage); }
+    }
+
+    private static class ServerUnavailableException extends RuntimeException {
+        public ServerUnavailableException() {
+            super(serverUnavailableMessage);
         }
     }
 }
